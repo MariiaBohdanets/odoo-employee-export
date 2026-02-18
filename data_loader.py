@@ -36,6 +36,7 @@ fields = [
     "user_id",
     "name",
     "department_id",
+    "job_title",
     "parent_id"
 ]
 

@@ -1,24 +1,16 @@
-import os
 import ssl
+import os
 import xmlrpc.client
 import pandas as pd
 
-# =========================
-# ENV PROMĚNNÉ
-# =========================
+# --- připojení ---
 odoo_url = os.environ["ODOO_URL"]
 odoo_db = os.environ["ODOO_DB"]
 odoo_user = os.environ["ODOO_USER"]
 odoo_password = os.environ["ODOO_PASSWORD"]
 
-# =========================
-# SSL CONTEXT
-# =========================
 ssl_context = ssl._create_unverified_context()
 
-# =========================
-# AUTH
-# =========================
 common = xmlrpc.client.ServerProxy(
     f"{odoo_url}/xmlrpc/2/common",
     context=ssl_context
@@ -31,36 +23,25 @@ uid = common.authenticate(
     {}
 )
 
-if not uid:
-    raise RuntimeError("Nepodařilo se přihlásit do Odoo")
-
-print(f"Přihlášení OK (uid={uid})")
-
-# =========================
-# OBJECT API
-# =========================
 models = xmlrpc.client.ServerProxy(
     f"{odoo_url}/xmlrpc/2/object",
     context=ssl_context
 )
 
-# =========================
-# DOTAZ NA ZAMĚSTNANCE
-# =========================
+# --- konfigurace dotazu ---
 fields = [
     "user_id",
     "name",
     "department_id",
-    "parent_id",
+    "parent_id"
 ]
 
-# POZOR:
-# department_id je Many2one → filtrujeme přes název oddělení
 domain = [
-    ("department_id.name", "!=", "EXT")
+    ("department_id", "!=", "EXT")
 ]
 
-employees = models.execute_kw(
+# --- načtení dat ---
+data = models.execute_kw(
     odoo_db,
     uid,
     odoo_password,
@@ -70,30 +51,9 @@ employees = models.execute_kw(
     {"fields": fields}
 )
 
-print(f"Načteno zaměstnanců: {len(employees)}")
+df = pd.DataFrame(data)
 
-# =========================
-# NORMALIZACE DAT
-# =========================
-rows = []
+# --- testovací výstup ---
+df.to_csv("employees_public_latest.csv", index=False)
 
-for emp in employees:
-    rows.append({
-        "user_id": emp["user_id"][0] if emp.get("user_id") else None,
-        "user_name": emp["user_id"][1] if emp.get("user_id") else None,
-        "name": emp.get("name"),
-        "department_id": emp["department_id"][0] if emp.get("department_id") else None,
-        "department_name": emp["department_id"][1] if emp.get("department_id") else None,
-        "parent_id": emp["parent_id"][0] if emp.get("parent_id") else None,
-        "parent_name": emp["parent_id"][1] if emp.get("parent_id") else None,
-    })
-
-df = pd.DataFrame(rows)
-
-# =========================
-# EXPORT
-# =========================
-output_file = "employees_filtered.csv"
-df.to_csv(output_file, index=False)
-
-print(f"Export hotový → {output_file}")
+df

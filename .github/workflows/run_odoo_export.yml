@@ -21,7 +21,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run script
+      - name: Run Odoo export script
         env:
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
@@ -29,3 +29,11 @@ jobs:
           ODOO_PASSWORD: ${{ secrets.ODOO_PASSWORD }}
         run: |
           python data_loader.py
+
+      - name: Commit CSV to repository
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add employees_public_latest.csv
+          git commit -m "Update employees public export" || echo "No changes"
+          git push
